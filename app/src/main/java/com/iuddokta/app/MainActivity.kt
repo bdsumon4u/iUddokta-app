@@ -1,25 +1,32 @@
 package com.iuddokta.app
 
 import android.os.Bundle
-import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.iuddokta.app.ui.theme.IUddoktaTheme
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import android.webkit.WebChromeClient
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        WebView.setWebContentsDebuggingEnabled(true)
-
         setContent {
             IUddoktaTheme {
                 WebViewWithPullToRefresh("https://iuddokta.com")
@@ -27,49 +34,44 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
 @Composable
 fun WebViewWithPullToRefresh(url: String) {
+    val context = LocalContext.current
     var isRefreshing by remember { mutableStateOf(false) }
-    var webViewRef: WebView? = null
+    var isLoading by remember { mutableStateOf(true) }
 
-    SwipeRefresh(
-        state = rememberSwipeRefreshState(isRefreshing),
-        onRefresh = {
-            isRefreshing = true
-            webViewRef?.reload()
-        }
-    ) {
-        AndroidView(
-            modifier = Modifier.fillMaxSize(),
-            factory = { context ->
-                WebView(context).apply {
+    // AndroidView for hosting native views in Jetpack Compose
+    AndroidView(
+        factory = { ctx ->
+            SwipeRefreshLayout(ctx).apply {
+                val webView = WebView(ctx).apply {
                     settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                    settings.setSupportZoom(true)
-                    settings.builtInZoomControls = true
-                    settings.displayZoomControls = false
-                    webViewClient = WebViewClient()
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            super.onPageFinished(view, url)
+                            isLoading = false
+                            isRefreshing = false
+                        }
+                    }
                     webChromeClient = WebChromeClient()
                     loadUrl(url)
-                }.also {
-                    webViewRef = it
                 }
-            },
-            update = { webView ->
-                webView.setOnPageFinishedListener {
-                    isRefreshing = false
+                addView(webView)
+
+                setOnRefreshListener {
+                    isRefreshing = true
+                    webView.reload()
                 }
             }
-        )
-    }
-}
-
-fun WebView.setOnPageFinishedListener(onPageFinished: () -> Unit) {
-    this.webViewClient = object : WebViewClient() {
-        override fun onPageFinished(view: WebView?, url: String?) {
-            onPageFinished()
+        },
+        modifier = Modifier.fillMaxSize(),
+        update = { swipeRefreshLayout ->
+            swipeRefreshLayout.isRefreshing = isRefreshing
         }
+    )
+
+    // Show Loading Indicator while the page is loading
+    if (isLoading) {
+        CircularProgressIndicator(modifier = Modifier.fillMaxSize())
     }
 }
