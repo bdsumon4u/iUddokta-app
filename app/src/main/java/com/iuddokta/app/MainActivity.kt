@@ -17,6 +17,9 @@ import com.iuddokta.app.ui.theme.IUddoktaTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        WebView.setWebContentsDebuggingEnabled(true)
+
         setContent {
             IUddoktaTheme {
                 WebViewWithPullToRefresh("https://iuddokta.com")
@@ -41,10 +44,14 @@ fun WebViewWithPullToRefresh(url: String) {
             modifier = Modifier.fillMaxSize(),
             factory = { context ->
                 WebView(context).apply {
-                    webViewClient = WebViewClient()
-                    webChromeClient = WebChromeClient()
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
+                    settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                    settings.setSupportZoom(true)
+                    settings.builtInZoomControls = true
+                    settings.displayZoomControls = false
+                    webViewClient = WebViewClient()
+                    webChromeClient = WebChromeClient()
                     loadUrl(url)
                 }.also {
                     webViewRef = it
