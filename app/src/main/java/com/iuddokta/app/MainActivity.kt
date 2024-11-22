@@ -23,19 +23,46 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import android.webkit.WebChromeClient
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
 
 class MainActivity : ComponentActivity() {
+    private var webView: WebView? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             IUddoktaTheme {
-                WebViewWithPullToRefresh("https://iuddokta.com")
+                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                    WebViewWithPullToRefresh(
+                        url = "https://iuddokta.com",
+                        onWebViewCreated = { webViewInstance ->
+                            webView = webViewInstance
+                        },
+                        modifier = Modifier.padding(innerPadding)
+                    )
+                }
             }
         }
     }
+
+    override fun onBackPressed() {
+        if (webView?.canGoBack() == true) {
+            webView?.goBack()
+        } else {
+            super.onBackPressed() // Close the app if no more pages to go back to
+        }
+    }
 }
+
 @Composable
-fun WebViewWithPullToRefresh(url: String) {
+fun WebViewWithPullToRefresh(
+    url: String,
+    onWebViewCreated: (WebView) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     var isRefreshing by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
@@ -45,7 +72,7 @@ fun WebViewWithPullToRefresh(url: String) {
             SwipeRefreshLayout(ctx).apply {
                 val webView = WebView(ctx).apply {
                     settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true // Ensure DOM storage is enabled for modern websites
+                    settings.domStorageEnabled = true
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                             super.onPageStarted(view, url, favicon)
@@ -62,6 +89,7 @@ fun WebViewWithPullToRefresh(url: String) {
                     loadUrl(url)
                 }
                 addView(webView)
+                onWebViewCreated(webView) // Provide the WebView instance
 
                 setOnRefreshListener {
                     isRefreshing = true
@@ -69,7 +97,7 @@ fun WebViewWithPullToRefresh(url: String) {
                 }
             }
         },
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         update = { swipeRefreshLayout ->
             swipeRefreshLayout.isRefreshing = isRefreshing
         }
