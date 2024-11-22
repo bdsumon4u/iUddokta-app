@@ -25,10 +25,14 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import android.webkit.WebChromeClient
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 
 class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
+    private val showExitDialog = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,6 +49,18 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
+            if (showExitDialog.value) {
+                ExitConfirmationDialog(
+                    onConfirm = {
+                        // User confirmed, exit the app
+                        super.onBackPressed()
+                    },
+                    onDismiss = {
+                        // User dismissed, just close the dialog
+                        showExitDialog.value = false
+                    }
+                )
+            }
         }
     }
 
@@ -52,9 +68,36 @@ class MainActivity : ComponentActivity() {
         if (webView?.canGoBack() == true) {
             webView?.goBack()
         } else {
-            super.onBackPressed() // Close the app if no more pages to go back to
+            // Show confirmation dialog before closing
+            showExitDialog.value = true
         }
     }
+}
+
+@Composable
+fun ExitConfirmationDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = "Exit App?")
+        },
+        text = {
+            Text("Are you sure you want to exit the app?")
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Yes")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("No")
+            }
+        }
+    )
 }
 
 @Composable
