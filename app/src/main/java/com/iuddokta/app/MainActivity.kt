@@ -40,13 +40,18 @@ fun WebViewWithPullToRefresh(url: String) {
     var isRefreshing by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
 
-    // AndroidView for hosting native views in Jetpack Compose
     AndroidView(
         factory = { ctx ->
             SwipeRefreshLayout(ctx).apply {
                 val webView = WebView(ctx).apply {
                     settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true // Ensure DOM storage is enabled for modern websites
                     webViewClient = object : WebViewClient() {
+                        override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                            super.onPageStarted(view, url, favicon)
+                            isLoading = true
+                        }
+
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
                             isLoading = false
@@ -72,6 +77,11 @@ fun WebViewWithPullToRefresh(url: String) {
 
     // Show Loading Indicator while the page is loading
     if (isLoading) {
-        CircularProgressIndicator(modifier = Modifier.fillMaxSize())
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
     }
 }
