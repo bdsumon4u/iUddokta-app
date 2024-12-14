@@ -1,5 +1,6 @@
 package com.iuddokta.app
 
+import android.graphics.Rect
 import android.os.Bundle
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -7,28 +8,21 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.viewinterop.AndroidView
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
-import com.iuddokta.app.ui.theme.IUddoktaTheme
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import android.webkit.WebChromeClient
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import com.iuddokta.app.ui.theme.IUddoktaTheme
 
 class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
@@ -52,11 +46,9 @@ class MainActivity : ComponentActivity() {
             if (showExitDialog.value) {
                 ExitConfirmationDialog(
                     onConfirm = {
-                        // User confirmed, exit the app
                         super.onBackPressed()
                     },
                     onDismiss = {
-                        // User dismissed, just close the dialog
                         showExitDialog.value = false
                     }
                 )
@@ -68,7 +60,6 @@ class MainActivity : ComponentActivity() {
         if (webView?.canGoBack() == true) {
             webView?.goBack()
         } else {
-            // Show confirmation dialog before closing
             showExitDialog.value = true
         }
     }
@@ -110,49 +101,67 @@ fun WebViewWithPullToRefresh(
     var isRefreshing by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
 
-    AndroidView(
-        factory = { ctx ->
-            SwipeRefreshLayout(ctx).apply {
-                val webView = WebView(ctx).apply {
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    webViewClient = object : WebViewClient() {
-                        override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                            super.onPageStarted(view, url, favicon)
-                            isLoading = true
-                        }
+    Box(modifier = modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { ctx ->
+                SwipeRefreshLayout(ctx).apply {
+                    val webView = WebView(ctx).apply {
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.loadWithOverviewMode = true
+                        settings.useWideViewPort = true
+                        settings.setSupportZoom(false)
+                        settings.builtInZoomControls = false
+                        settings.displayZoomControls = false
 
-                        override fun onPageFinished(view: WebView?, url: String?) {
-                            super.onPageFinished(view, url)
-                            isLoading = false
-                            isRefreshing = false
+                        settings.domStorageEnabled = true
+                        webViewClient = object : WebViewClient() {
+                            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                super.onPageStarted(view, url, favicon)
+                                isLoading = true
+                            }
+
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                super.onPageFinished(view, url)
+                                scrollTo(scrollX, 0)
+                                isLoading = false
+                                isRefreshing = false
+                            }
+                        }
+                        webChromeClient = WebChromeClient()
+                        loadUrl(url)
+                        // Add Global Layout Listener
+                        viewTreeObserver.addOnGlobalLayoutListener {
+                            val rect = Rect()
+                            getWindowVisibleDisplayFrame(rect)
+                            val screenHeight = rootView.height
+                            val keypadHeight = screenHeight - rect.bottom
+
+                            if (keypadHeight > screenHeight * 0.15) {
+                                // Keyboard is visible
+                                scrollTo(0, 0)
+                            }
                         }
                     }
-                    webChromeClient = WebChromeClient()
-                    loadUrl(url)
-                }
-                addView(webView)
-                onWebViewCreated(webView) // Provide the WebView instance
+                    addView(webView)
+                    onWebViewCreated(webView)
 
-                setOnRefreshListener {
-                    isRefreshing = true
-                    webView.reload()
+                    setOnRefreshListener {
+                        isRefreshing = true
+                        webView.reload()
+                    }
                 }
+            },
+            update = { swipeRefreshLayout ->
+                swipeRefreshLayout.isRefreshing = isRefreshing
             }
-        },
-        modifier = modifier.fillMaxSize(),
-        update = { swipeRefreshLayout ->
-            swipeRefreshLayout.isRefreshing = isRefreshing
-        }
-    )
+        )
 
-    // Show Loading Indicator while the page is loading
-    if (isLoading) {
-        androidx.compose.foundation.layout.Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = androidx.compose.ui.Alignment.Center
-        ) {
-            CircularProgressIndicator()
+        // Show Loading Indicator while the page is loading
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center)
+            )
         }
     }
 }
