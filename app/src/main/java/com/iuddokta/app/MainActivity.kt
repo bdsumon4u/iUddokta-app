@@ -1,5 +1,6 @@
 package com.iuddokta.app
 
+import android.annotation.SuppressLint
 import android.graphics.Rect
 import android.os.Bundle
 import android.webkit.WebView
@@ -91,6 +92,7 @@ fun ExitConfirmationDialog(
     )
 }
 
+@SuppressLint("ClickableViewAccessibility")
 @Composable
 fun WebViewWithPullToRefresh(
     url: String,
@@ -113,8 +115,11 @@ fun WebViewWithPullToRefresh(
                         settings.setSupportZoom(false)
                         settings.builtInZoomControls = false
                         settings.displayZoomControls = false
+                        settings.allowFileAccess = true
+                        settings.allowContentAccess = true
+                        settings.setSupportMultipleWindows(true)
+                        settings.javaScriptCanOpenWindowsAutomatically = true
 
-                        settings.domStorageEnabled = true
                         webViewClient = object : WebViewClient() {
                             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                                 super.onPageStarted(view, url, favicon)
@@ -123,14 +128,11 @@ fun WebViewWithPullToRefresh(
 
                             override fun onPageFinished(view: WebView?, url: String?) {
                                 super.onPageFinished(view, url)
-                                scrollTo(scrollX, 0)
                                 isLoading = false
                                 isRefreshing = false
                             }
                         }
-                        webChromeClient = WebChromeClient()
                         loadUrl(url)
-                        // Add Global Layout Listener
                         viewTreeObserver.addOnGlobalLayoutListener {
                             val rect = Rect()
                             getWindowVisibleDisplayFrame(rect)
@@ -139,10 +141,23 @@ fun WebViewWithPullToRefresh(
 
                             if (keypadHeight > screenHeight * 0.15) {
                                 // Keyboard is visible
-                                scrollTo(0, 0)
+                                post {
+                                    scrollTo(scrollX, scrollY)
+                                }
                             }
                         }
                     }
+
+                    webView.requestFocusFromTouch()
+                    webView.setOnTouchListener { v, event ->
+                        when (event.action) {
+                            android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_UP -> {
+                                v.performClick()
+                            }
+                        }
+                        false
+                    }
+
                     addView(webView)
                     onWebViewCreated(webView)
 
